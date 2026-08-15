@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "recurring-reminders",
+  "name": "Recurring Reminders",
+  "version": "1.0.0",
+  "author": "Rishabh",
+  "license": "MIT",
+  "description": "A friendly, persistent scheduler for reminders that repeat through the day.",
+  "kinds": ["bar-widget"],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Recurring reminders",
+    "description": "Create, pause, snooze, and manage repeating desktop reminders.",
+    "category": "Time",
+    "aliases": ["reminders", "repeat", "water", "habit"],
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
