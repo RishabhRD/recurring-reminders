@@ -11,3 +11,15 @@ Click the water-drop icon to add a reminder, set its repeat interval, pause it, 
 ## Intervals
 
 Intervals can be 1 minute through 7 days (10,080 minutes). The first notification is sent after the interval you choose; subsequent notifications repeat on that cadence.
+
+## Install
+
+```
+omarchy plugin add https://github.com/RishabhRD/recurring-reminders --enable
+```
+
+## Uninstall
+
+```
+omarchy plugin remove recurring-reminders
+```
