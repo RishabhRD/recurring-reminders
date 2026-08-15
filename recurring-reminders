@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+"""Persistent scheduler used by the Recurring Reminders Omarchy widget."""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+
+STATE_DIR = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "omarchy")
+STATE_FILE = os.path.join(STATE_DIR, "recurring-reminders.json")
+
+
+def load():
+    try:
+        with open(STATE_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except (OSError, ValueError):
+        return []
+
+
+def save(items):
+    os.makedirs(STATE_DIR, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix="recurring-reminders-", suffix=".json", dir=STATE_DIR)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(temporary, STATE_FILE)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def valid_minutes(value):
+    minutes = int(value)
+    if minutes < 1 or minutes > 10080:
+        raise ValueError("Frequency must be between 1 minute and 7 days")
+    return minutes
+
+
+def emit(items):
+    items.sort(key=lambda item: (not item.get("enabled", True), item.get("nextDue", 0), item.get("title", "").lower()))
+    print(json.dumps(items, ensure_ascii=False))
+
+
+def main(args):
+    items = load()
+    command = args[0] if args else "list"
+    now = int(time.time())
+    if command == "list":
+        emit(items)
+    elif command == "add":
+        title = " ".join(args[2:]).strip()
+        minutes = valid_minutes(args[1])
+        if not title:
+            raise ValueError("A reminder needs a title")
+        items.append({"id": str(uuid.uuid4()), "title": title[:120], "minutes": minutes, "enabled": True, "nextDue": now + minutes * 60})
+        save(items)
+        emit(items)
+    elif command in ("toggle", "delete", "snooze"):
+        if len(args) < 2:
+            raise ValueError("Missing reminder id")
+        reminder_id = args[1]
+        found = next((item for item in items if item.get("id") == reminder_id), None)
+        if found is None:
+            raise ValueError("Reminder not found")
+        if command == "toggle":
+            found["enabled"] = not bool(found.get("enabled", True))
+            if found["enabled"]:
+                found["nextDue"] = now + valid_minutes(found.get("minutes", 60)) * 60
+        elif command == "snooze":
+            minutes = valid_minutes(args[2] if len(args) > 2 else "10")
+            found["nextDue"] = now + minutes * 60
+        else:
+            items.remove(found)
+        save(items)
+        emit(items)
+    elif command == "tick":
+        changed = False
+        for item in items:
+            if not item.get("enabled", True) or int(item.get("nextDue", 0)) > now:
+                continue
+            title = str(item.get("title", "Reminder"))
+            minutes = valid_minutes(item.get("minutes", 60))
+            try:
+                subprocess.run(["notify-send", "-a", "Recurring reminders", "-i", "alarm", "-t", "15000", title, "Repeats every %d minute%s" % (minutes, "" if minutes == 1 else "s")], check=False, timeout=5)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+            item["nextDue"] = now + minutes * 60
+            changed = True
+        if changed:
+            save(items)
+        emit(items)
+    else:
+        raise ValueError("Unknown command")
+
+
+if __name__ == "__main__":
+    try:
+        main(sys.argv[1:])
+    except (ValueError, IndexError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(2)
