@@ -86,7 +86,7 @@ def main(args):
             title = str(item.get("title", "Reminder"))
             minutes = valid_minutes(item.get("minutes", 60))
             try:
-                subprocess.run(["notify-send", "-a", "Recurring reminders", "-i", "alarm", "-t", "15000", title, "Repeats every %d minute%s" % (minutes, "" if minutes == 1 else "s")], check=False, timeout=5)
+                subprocess.run(["notify-send", "-a", "Recurring reminders", "-i", "alarm", "-t", "5000", title, "Repeats every %d minute%s" % (minutes, "" if minutes == 1 else "s")], check=False, timeout=5)
             except (OSError, subprocess.TimeoutExpired):
                 pass
             item["nextDue"] = now + minutes * 60
